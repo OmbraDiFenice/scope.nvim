@@ -118,10 +118,15 @@ M.close_buffer = function(opts)
         if #buffers_in_current_tab == 1 then
             if tab_count > 1 then
                 vim.api.nvim_buf_delete(current_buf, { force = opts.force })
-                vim.cmd("tabclose")
+                if tab_count > 1 then
+                    vim.cmd("tabclose")
+                end
             else
                 -- Ask for confirmation before quitting if it's the only tab
-                local choice = vim.fn.confirm("You're about to close the last tab. Do you want to quit?", "&Yes\n&No")
+								local choice = 1
+								if opts.ask then
+									choice = vim.fn.confirm("You're about to close the last tab. Do you want to quit?", "&Yes\n&No")
+								end
                 if choice == 1 then
                     vim.cmd("qa!")
                 end
