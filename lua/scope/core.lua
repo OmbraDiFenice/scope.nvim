@@ -148,26 +148,47 @@ function M.move_current_buf(opts)
         return
     end
 
-    local target = tonumber(opts.args)
-    if target == nil then
-        -- invalid target tab, get input from user
-        local input = vim.fn.input("Move buf to: ")
-        if input == "" then -- user cancel
-            return
-        end
+    local current_buf = vim.api.nvim_get_current_buf()
+    local existing_tabs = vim.api.nvim_list_tabpages()
+    local target_handle = nil
 
-        target = tonumber(input)
+    if #existing_tabs <= 1 then -- there are no other tabs, create one (ignores the input tab since it can't make sense)
+        -- Create a new tab with the current buffer.
+        -- When we create a new tab, an empty buffer is always opened there by nvim. This takes care of
+        -- getting rid of that empty buffer and open the current one in the new tab instead.
+
+        -- Save ref to the original tab from where we're moving the buf
+        local current_tab = vim.api.nvim_get_current_tabpage()
+
+        -- Create the new tab. This changes the "current tab" to the new one
+        vim.cmd('tabnew')
+        target_handle = vim.api.nvim_get_current_tabpage()
+        local new_empty_buf = vim.api.nvim_get_current_buf()
+
+        vim.api.nvim_set_current_buf(current_buf) -- set the current buf of the new tab to the one being moved
+        vim.api.nvim_buf_delete(new_empty_buf, { force = true }) -- delete the empty buf
+        vim.api.nvim_set_current_tabpage(current_tab) -- bring the focus back to the original tab
+    else
+        local target = tonumber(opts.args)
+        if target == nil then
+            -- invalid target tab, get input from user
+            local input = vim.fn.input("Move buf to: ")
+            if input == "" then -- user cancel
+                return
+            end
+
+            target = tonumber(input)
+        end
+        -- bufferline always display  tab number, not the handle. When scope use tab handle to store buffer info. So need to convert
+        target_handle = existing_tabs[target]
     end
 
-    -- bufferline always display  tab number, not the handle. When scope use tab handle to store buffer info. So need to convert
-    local target_handle = vim.api.nvim_list_tabpages()[target]
-
     if target_handle == nil then
-        vim.api.nvim_err_writeln("Invalid target tab")
+        vim.notify("Invalid target tab", vim.log.levels.ERROR)
         return
     end
 
-    M.move_buf(vim.api.nvim_get_current_buf(), target_handle)
+    M.move_buf(current_buf, target_handle)
 end
 
 function M.move_buf(bufnr, target)
